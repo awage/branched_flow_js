@@ -87,7 +87,7 @@ browsers. For best results, use Google Chrome.</canvas>
 		<option value="2">300 x 120</option>
 		<option value="1">600 x 240</option>
 	</select>
-	<input id="resetFluidButton" type="button" onclick="initFluid()" value="Reset">
+	<input id="resetFluidButton" type="button" onclick="initGrid()" value="Reset">
 	<input id="stepButton" type="button" onclick="simulate()" value="Step">
 	<input id="startButton" type="button" onclick="startStop()" value="Pause">
 </div>
@@ -98,7 +98,6 @@ browsers. For best results, use Google Chrome.</canvas>
 	&nbsp;&nbsp;<input id="rafCheck" type="checkbox" checked="checked" onchange="resetTimer()">Faster?
 </div>
 
-//<script src="Fluid%20Dynamics%20Simulation_files/barrierdata.js"></script>
 <script>
 	// Global variables:
 	var mobile = navigator.userAgent.match(/iPhone|iPad|iPod|Android|BlackBerry|Opera Mini|IEMobile/i)
@@ -117,8 +116,8 @@ browsers. For best results, use Google Chrome.</canvas>
 	var startButton = document.getElementById('startButton');
 	var speedSlider = document.getElementById('speedSlider');
 	var speedValue = document.getElementById('speedValue');
-	var plotSelect = document.getElementById('plotSelect');
-	var contrastSlider = document.getElementById('contrastSlider');
+	//var plotSelect = document.getElementById('plotSelect');
+	//var contrastSlider = document.getElementById('contrastSlider');
 	//var pixelCheck = document.getElementById('pixelCheck');
 	var speedReadout = document.getElementById('speedReadout');
 	var dataSection = document.getElementById('dataSection');
@@ -133,9 +132,6 @@ browsers. For best results, use Google Chrome.</canvas>
 	var oldMouseX = -1, oldMouseY = -1;			// mouse coordinates from previous simulation frame
 	var collectingData = false;
 	var time = 0;								// time (in simulation step units) since data collection started
-	var showingPeriod = false;
-	var lastBarrierFy = 1;						// for determining when F_y oscillation begins
-	var lastFyOscTime = 0;						// for calculating F_y oscillation period
 	var zoom = 10
 	canvas.addEventListener('mousedown', mouseDown, false);
 	canvas.addEventListener('mousemove', mouseMove, false);
@@ -158,6 +154,17 @@ browsers. For best results, use Google Chrome.</canvas>
 	}
 
 	yy[0]=0.3; yy[1]=0.5;
+
+function initGrid(){
+
+	for (var y=0; y<ydim; y++) {
+		for (var x=0; x<xdim; x++) {
+			frame_buffer[x+y*xdim] =0;
+		}
+	}
+	yy[0]=0.3; yy[1]=0.5;
+
+}
 
 	// Set up the array of colors for plotting (mimicks matplotlib "jet" colormap):
 	// (Kludge: Index nColors+1 labels the color used for drawing barriers.)
@@ -278,16 +285,16 @@ browsers. For best results, use Google Chrome.</canvas>
 	// Paint the canvas:
 	function paintCanvas() {
 		var cIndex=0;
-		var contrast = Math.pow(1.2,Number(contrastSlider.value));
-		var plotType = plotSelect.selectedIndex;
+		//var contrast = Math.pow(1.2,Number(contrastSlider.value));
+		//var plotType = plotSelect.selectedIndex;
 		//var pixelGraphics = pixelCheck.checked;
 
 		var x_pos = Math.floor(yy[0]*zoom+xdim/2);
-		if(x_pos>xdim) x_pos=xdim;
-		if(x_pos<0) x_pos=0;
 		var y_pos = Math.floor(yy[1]*zoom+ydim/2);
 		if(y_pos>ydim) y_pos=ydim;
 		if(y_pos<0) y_pos=0;
+
+if(x_pos>0 && x_pos<xdim && y_pos>0 && y_pos<xdim ){
 
 		frame_buffer[x_pos+y_pos*xdim] = frame_buffer[x_pos+y_pos*xdim]+0.2;
 		if(frame_buffer[x_pos+y_pos*xdim] > 1)
@@ -317,7 +324,7 @@ browsers. For best results, use Google Chrome.</canvas>
 
 			}
 		}
-
+}
 		context.putImageData(image, 0, 0);		// blast image to the screen
 
 	}
