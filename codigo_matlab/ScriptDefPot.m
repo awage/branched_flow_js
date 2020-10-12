@@ -147,9 +147,20 @@ for i=1:length(param)
         ax(n+1) = -dxVdefpot (T, kx, ky, x(n+1), y(n+1), phi, c, Ed)/me;
         ay(n+1) = -dyVdefpot (T, kx, ky, x(n+1), y(n+1), phi, c, Ed)/me;
 
+        dxVdefpot (T, kx, ky, x(n+1), y(n+1), phi, c, Ed)
+        dyVdefpot (T, kx, ky, x(n+1), y(n+1), phi, c, Ed)
+
         vx(n+1) = vx(n) +0.5 * (ax(n)+ax(n+1))*h;
         vy(n+1) = vy(n) +0.5 * (ay(n)+ay(n+1))*h;
 
+        x(n+1)
+        y(n+1)
+        ax(n+1)
+        ay(n+1)
+        vx(n+1)
+        vy(n+1)
+
+pause()
 
         trajx(n)=x(n+1);
         trajy(n)=y(n+1);
@@ -166,9 +177,9 @@ for i=1:length(param)
     end % End of symplectic integration
 
 
-%         trajE=trajE(trajE~=0);
-%         trajT=trajT(trajT~=0);
-%         trajV=trajV(trajV~=0);
+        trajE=trajE(trajE~=0);
+        trajT=trajT(trajT~=0);
+        trajV=trajV(trajV~=0);
 
         trajx=trajx(trajx~=-876);
         trajy=trajy(trajy~=-876);

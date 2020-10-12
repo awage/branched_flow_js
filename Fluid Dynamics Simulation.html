@@ -69,23 +69,19 @@
 
 <h2>Fluid Dynamics Simulation</h2>
 
-<p>By <a href="http://physics.weber.edu/schroeder/">Dan Schroeder</a>,
-<a href="http://physics.weber.edu/">Physics Department</a>,
-<a href="http://weber.edu/">Weber State University</a></p>
-
-<canvas id="theCanvas" width="600" height="240">This application runs only in modern
+<canvas id="theCanvas" width="600" height="600">This application runs only in modern
 browsers. For best results, use Google Chrome.</canvas>
 
 <div>
 	<select id="sizeSelect" onchange="resize()">
-		<option value="10">60 x 24</option>
-		<option value="8">75 x 30</option>
-		<option value="6">100 x 40</option>
-		<option value="5">120 x 48</option>
-		<option value="4">150 x 60</option>
-		<option value="3" selected="selected">200 x 80</option>
-		<option value="2">300 x 120</option>
-		<option value="1">600 x 240</option>
+		<option value="10">60 x 60</option>
+		<option value="8">75 x 75</option>
+		<option value="6">100 x 100</option>
+		<option value="5">120 x 120</option>
+		<option value="4">150 x 150</option>
+		<option value="3" selected="selected">200 x 200</option>
+		<option value="2">300 x 300</option>
+		<option value="1">600 x 600</option>
 	</select>
 	<input id="resetFluidButton" type="button" onclick="initGrid()" value="Reset">
 	<input id="stepButton" type="button" onclick="simulate()" value="Step">
@@ -144,7 +140,6 @@ browsers. For best results, use Google Chrome.</canvas>
 	// To index into these arrays, use x + y*xdim, traversing rows first and then columns.
 
 	var yy = new Array(2);
-
 	var frame_buffer = new Array(xdim*ydim);
 
 	for (var y=0; y<ydim; y++) {
@@ -155,16 +150,266 @@ browsers. For best results, use Google Chrome.</canvas>
 
 	yy[0]=0.3; yy[1]=0.5;
 
-function initGrid(){
+var np=50; // number of points of the calculation
+var tmax=1e-11; // maximum integration time
+var h=1e-14; // step size of the integration
 
+
+// Potential parameters
+
+var E=2;
+var v0=5e5; // initial (Fermi) velocity
+var me=9.10938356e-31; // electron (effective) mass
+var T = 10; // temperature
+var c_ph=2.5e4; // speed of phonons
+var Ed=2e-7; // potential strength
+var kxmin=-2.5e8; // phonon wavevectors definition
+var kxmax=2.5e8;
+var ncomps=50;
+
+var kx = new Array(ncomps);
+var ky = new Array(ncomps);
+var k=0;
+for(var j=kxmin; j<kxmax; j+=(kxmax-kxmin)/(ncomps-1)){
+   kx[k]=j; ky[k]=j;
+	 k++;
+}
+
+var phi = new Array(ncomps*ncomps);
+for(var j=0; j<ncomps;j++){
+  for(var k=0; k<ncomps; k++){
+    phi[j+ncomps*k]=2*Math.PI*Math.random();
+	}
+}
+//phi=2*pi*rand(ncomps,ncomps); // random phases for the phonons
+
+// Plotting the potential
+var npV=xdim; // resolution of the potential picture
+var V = new Array(npV*npV);
+var Vmax=0;
+var Vmin=0;
+var xmin=0;
+var xmax=2e-6;
+var xg = new Array(npV)
+var yg = new Array(npV)
+var k=0;
+for(var j=xmin; j<xmax; j+=(xmax-xmin)/(npV-1)){
+   xg[k]=j;
+	 k++;
+}
+//xg=xmin:(xmax-xmin)/(npV-1):xmax;
+var ymin=-1e-6;
+var ymax=1e-6;
+var k=0;
+for(var j=ymin; j<ymax; j+=(ymax-ymin)/(npV-1)){
+ 	yg[k]=j;
+	k++;
+}
+//yg=ymin:(ymax-ymin)/(npV-1):ymax;
+
+
+function Vdefpot(){
+
+	var hbar = 1.0545718e-34;
+	var kB = 1.3806e-23;
+	var comps1=kx.length;
+	var comps2=ky.length;
+	var tau = 0;
+	Vmax=0;
+	Vmin=0;
+	for(var xi=0; xi<xg.length; xi++){
+		for(var yi=0; yi<yg.length; yi++){
+			V[xi+yi*xg.length]=0;
+		}
+	}
+	for(var i=0; i<comps1; i++){
+	    for(var j=0; j<comps2; j++){
+
+	        k = Math.sqrt(kx[i]*kx[i] + ky[j]*ky[j]);
+	        w = c_ph *k; // linear regime where the frequency is proportional to the modulus of vector k
+					for(var xi=0; xi<xg.length; xi++){
+						for(var yi=0; yi<yg.length; yi++){
+			        Vnew = Ed/c_ph*Math.sqrt(2*hbar*w) / Math.sqrt(Math.exp(hbar*w/ kB /T)-1)*Math.cos(kx[i]*xg[xi] + ky[j]*yg[yi] - w*tau + phi[i+j*comps2]);
+							if (isNaN(Vnew))
+			            Vnew = 0; // to avoid dividing 0 by 0
+			        V[xi+yi*xg.length] = V[xi+yi*xg.length] + Vnew;
+							if(V[xi+yi*xg.length] > Vmax) Vmax = V[xi+yi*xg.length];
+							if(V[xi+yi*xg.length] < Vmin) Vmin = V[xi+yi*xg.length];
+						}
+					}
+	    }
+		}
+}
+
+function Vpot(xp,yp){
+	var hbar = 1.0545718e-34;
+	var kB = 1.3806e-23;
+	var comps1=kx.length;
+	var comps2=ky.length;
+	var tau = 0;
+	Vmax=0;
+	Vmin=0;
+	var Vout=0;
+	for(var i=0; i<comps1; i++){
+	    for(var j=0; j<comps2; j++){
+	        k = Math.sqrt(kx[i]*kx[i] + ky[j]*ky[j]);
+	        w = c_ph *k; // linear regime where the frequency is proportional to the modulus of vector k
+			    Vnew = Ed/c_ph*Math.sqrt(2*hbar*w) / Math.sqrt(Math.exp(hbar*w/ kB /T)-1)*Math.cos(kx[i]*xp + ky[j]*yp - w*tau + phi[i+j*comps2]);
+					if (isNaN(Vnew))
+			       Vnew = 0; // to avoid dividing 0 by 0
+			    Vout = Vout + Vnew;
+			}
+		}
+	return Vout;
+}
+
+function dxVpot(xp,yp){
+	var hbar = 1.0545718e-34;
+	var kB = 1.3806e-23;
+	var comps1=kx.length;
+	var comps2=ky.length;
+	var tau = 0;
+	Vmax=0;
+	Vmin=0;
+	var Vout=0;
+	for(var i=0; i<comps1; i++){
+	    for(var j=0; j<comps2; j++){
+	        var kk = Math.sqrt(kx[i]*kx[i] + ky[j]*ky[j]);
+	        var w = c_ph *kk; // linear regime where the frequency is proportional to the modulus of vector k
+					Vnew = -kx[i]*Ed/c_ph*Math.sqrt(2*hbar*w) / Math.sqrt(Math.exp(hbar*w/ kB /T)-1) * Math.sin(kx[i]*xp + ky[j]*yp - w*tau + phi[i+comps1*j]);
+					if (isNaN(Vnew))
+			            Vnew = 0; // to avoid dividing 0 by 0
+			    Vout = Vout + Vnew;
+			}
+		}
+	return Vout;
+}
+
+function dyVpot(xp,yp){
+	var hbar = 1.0545718e-34;
+	var kB = 1.3806e-23;
+	var comps1=kx.length;
+	var comps2=ky.length;
+	var tau = 0;
+	Vmax=0;
+	Vmin=0;
+	var Vout=0;
+	for(var i=0; i<comps1; i++){
+	    for(var j=0; j<comps2; j++){
+	        k = Math.sqrt(kx[i]*kx[i] + ky[j]*ky[j]);
+	        w = c_ph *k; // linear regime where the frequency is proportional to the modulus of vector k
+					Vnew = -ky[j]*Ed/c_ph*Math.sqrt(2*hbar*w) / Math.sqrt(Math.exp(hbar*w/ kB /T)-1)*Math.sin(kx[i]*xp + ky[j]*yp - w*tau + phi[i+comps1*j]);
+					if (isNaN(Vnew))
+			            Vnew = 0; // to avoid dividing 0 by 0
+			    Vout = Vout + Vnew;
+			}
+		}
+	return Vout;
+}
+
+
+function initGrid(){
 	for (var y=0; y<ydim; y++) {
 		for (var x=0; x<xdim; x++) {
-			frame_buffer[x+y*xdim] =0;
+			frame_buffer[x+y*xdim] = (V[x+y*xdim]-Vmin)/(Vmax-Vmin) ;
 		}
 	}
 	yy[0]=0.3; yy[1]=0.5;
+	init_traj();
+}
+
+// DEFINITIONS FOR INTEGRATION
+var x0=0;
+var y0min=-0.2e-6;
+var y0max=0.2e-6;
+var k=0;
+var y0 = new Array(np);
+for(var j=y0min; j<y0max; j+=(y0max-y0min)/(np-1)){
+ y0[k]=j; k++;
+}
+
+var beam=0; // to switch between beam and source modes
+var anglemin=-15;
+var anglemax=15;
+var angle = new Array(np);
+k=0;
+for(var j=anglemin; j<anglemax; j+=(anglemax-anglemin)/(np-1)){
+   angle[k]=j; k++;
+}
+
+if(beam==1)
+    param=y0;
+else
+    param=angle;
+
+var x_n; var y_n; var x_n_1; var y_n_1;
+var vx_n; var vy_n; var vx_n_1; var vy_n_1;
+var ax_n; var ay_n; var ax_n_1; var ay_n_1;
+var escape=0;
+var remaining=0;
+
+function init_traj(){
+
+		if(remaining == param.length-1){
+			// stop sim;
+			startStop();
+			remaining=0;
+		}
+
+    if(beam==1){
+        x_n=x0;
+        y_n=y0[remaining];
+        vx_n=v0;
+        vy_n=0;
+		}
+    else{
+        x_n=x0;
+        y_n=0;
+        vx_n=v0*Math.cos(angle[remaining]*2*Math.PI/360);
+        vy_n=v0*Math.sin(angle[remaining]*2*Math.PI/360);
+    }
+
+     var V0 = Vpot(x_n, y_n);
+     var E0 = V0 + 0.5*me*v0*v0;
+     v0=Math.sqrt(2/me*(E0-V0)-vy_n*vy_n);
+		 escape=0;
+
+		ax_n=0;
+		ay_n=0;
+		remaining++;
 
 }
+
+// Compute potential once
+Vdefpot();
+initGrid();
+
+// Start of symplectic integration
+function integrate_trajectory(){
+        x_n_1 = x_n + vx_n*h + 0.5*ax_n*h*h;
+        y_n_1 = y_n + vy_n*h + 0.5*ay_n*h*h;
+
+        ax_n_1 = -dxVpot(x_n_1, y_n_1)/me;
+        ay_n_1 = -dyVpot(x_n_1, y_n_1)/me;
+
+        vx_n_1 = vx_n +0.5 * (ax_n+ax_n_1)*h;
+        vy_n_1 = vy_n +0.5 * (ay_n+ay_n_1)*h;
+
+        if(x_n_1>xmax || y_n_1>ymax || y_n_1<ymin){
+            escape=1;
+						init_traj(); // new trajectory
+				}
+				else{
+						x_n=x_n_1;
+						y_n=y_n_1;
+						vx_n=vx_n_1;
+						vy_n=vy_n_1;
+						ax_n=ax_n_1;
+						ay_n=ay_n_1;
+				}
+     // End of symplectic integration
+}
+
 
 	// Set up the array of colors for plotting (mimicks matplotlib "jet" colormap):
 	// (Kludge: Index nColors+1 labels the color used for drawing barriers.)
@@ -209,8 +454,6 @@ function initGrid(){
 	}
 
 
-
-
 	// Mysterious gymnastics that are apparently useful for better cross-browser animation timing:
 	window.requestAnimFrame = (function(callback) {
 		return 	window.requestAnimationFrame ||
@@ -226,18 +469,11 @@ function initGrid(){
 	// Simulate function executes a bunch of steps and then schedules another call to itself:
 	function simulate() {
 		var stepsPerFrame = Number(stepsSlider.value);			// number of simulation steps per animation frame
-		if (mouseIsDown) {
-				var gridLoc = canvasToGrid(mouseX, mouseY);
-				yy[0] = (gridLoc.x-xdim/2)/zoom;
-				yy[1] = (gridLoc.y-ydim/2)/zoom;
-			}
 
 		// Execute a bunch of time steps:
 		for (var step=0; step<stepsPerFrame; step++) {
-
-			integrate();
+			integrate_trajectory();
 			time++;
-
 		}
 		paintCanvas();
 
@@ -251,7 +487,6 @@ function initGrid(){
 		if (!stable) {
 			window.alert("The simulation has become unstable due to excessive fluid speeds.");
 			startStop();
-			initFluid();
 		}
 		if (running) {
 			if (rafCheck.checked) {
@@ -289,14 +524,23 @@ function initGrid(){
 		//var plotType = plotSelect.selectedIndex;
 		//var pixelGraphics = pixelCheck.checked;
 
-		var x_pos = Math.floor(yy[0]*zoom+xdim/2);
-		var y_pos = Math.floor(yy[1]*zoom+ydim/2);
-		if(y_pos>ydim) y_pos=ydim;
-		if(y_pos<0) y_pos=0;
+		// Plot potential
+//		for (var y=0; y<ydim; y++) {
+//			for (var x=0; x<xdim; x++) {
+//				frame_buffer[x_pos+y_pos*xdim] = V[x_pos+y_pos*xdim];
+//			}
+//		}
+
+		//var x_pos = Math.floor(yy[0]*zoom+xdim/2);
+		//var y_pos = Math.floor(yy[1]*zoom+ydim/2);
+
+		//adjust pos relative to the canva
+		var x_pos = Math.floor((x_n-xmin)/(xmax-xmin)*xdim);
+		var y_pos = Math.floor((y_n-ymin)/(ymax-ymin)*ydim);
 
 if(x_pos>0 && x_pos<xdim && y_pos>0 && y_pos<xdim ){
 
-		frame_buffer[x_pos+y_pos*xdim] = frame_buffer[x_pos+y_pos*xdim]+0.2;
+		frame_buffer[x_pos+y_pos*xdim] = 0.99;
 		if(frame_buffer[x_pos+y_pos*xdim] > 1)
 			frame_buffer[x_pos+y_pos*xdim] = 0.99
 
