@@ -51,7 +51,7 @@
 -->
 <html><head>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-<title>Fluid Dynamics Simulation</title>
+<title>Branched Flow Simulation</title>
 <meta charset="utf-8">
 <meta name="viewport" content="width=620">
 <style>
@@ -69,23 +69,17 @@
 
 <h2>Fluid Dynamics Simulation</h2>
 
-<canvas id="theCanvas" width="600" height="600">This application runs only in modern
+<canvas id="theCanvas" width="400" height="400">This application runs only in modern
 browsers. For best results, use Google Chrome.</canvas>
 
 <div>
 	<select id="sizeSelect" onchange="resize()">
-		<option value="10">60 x 60</option>
-		<option value="8">75 x 75</option>
-		<option value="6">100 x 100</option>
-		<option value="5">120 x 120</option>
-		<option value="4">150 x 150</option>
-		<option value="3" selected="selected">200 x 200</option>
-		<option value="2">300 x 300</option>
-		<option value="1">600 x 600</option>
+		<option value="4">100 x 100</option>
+		<option value="2" selected="selected">200 x 200</option>
 	</select>
 	<input id="resetFluidButton" type="button" onclick="initGrid()" value="Reset">
 	<input id="stepButton" type="button" onclick="simulate()" value="Step">
-	<input id="startButton" type="button" onclick="startStop()" value="Pause">
+	<input id="startButton" type="button" onclick="startStop()" value="Run">
 </div>
 <div>
 	Animation speed:
@@ -102,7 +96,7 @@ browsers. For best results, use Google Chrome.</canvas>
 	var image = context.createImageData(canvas.width, canvas.height);		// for direct pixel manipulation (faster than fillRect)
 	for (var i=3; i<image.data.length; i+=4) image.data[i] = 255;			// set all alpha values to opaque
 	var sizeSelect = document.getElementById('sizeSelect');
-	sizeSelect.selectedIndex = 5;
+	sizeSelect.selectedIndex = 1;
 	if (mobile) sizeSelect.selectedIndex = 1;		// smaller works better on mobile platforms
 	var pxPerSquare = Number(sizeSelect.options[sizeSelect.selectedIndex].value);
 													// width of plotted grid site in pixels
@@ -139,7 +133,6 @@ browsers. For best results, use Google Chrome.</canvas>
 	// Create the arrays of fluid particle densities, etc. (using 1D arrays for speed):
 	// To index into these arrays, use x + y*xdim, traversing rows first and then columns.
 
-	var yy = new Array(2);
 	var frame_buffer = new Array(xdim*ydim);
 
 	for (var y=0; y<ydim; y++) {
@@ -148,15 +141,10 @@ browsers. For best results, use Google Chrome.</canvas>
 		}
 	}
 
-	yy[0]=0.3; yy[1]=0.5;
-
 var np=50; // number of points of the calculation
 var tmax=1e-11; // maximum integration time
 var h=1e-14; // step size of the integration
-
-
 // Potential parameters
-
 var E=2;
 var v0=5e5; // initial (Fermi) velocity
 var me=9.10938356e-31; // electron (effective) mass
@@ -166,7 +154,6 @@ var Ed=2e-7; // potential strength
 var kxmin=-2.5e8; // phonon wavevectors definition
 var kxmax=2.5e8;
 var ncomps=50;
-
 var kx = new Array(ncomps);
 var ky = new Array(ncomps);
 var k=0;
@@ -174,15 +161,12 @@ for(var j=kxmin; j<kxmax; j+=(kxmax-kxmin)/(ncomps-1)){
    kx[k]=j; ky[k]=j;
 	 k++;
 }
-
 var phi = new Array(ncomps*ncomps);
 for(var j=0; j<ncomps;j++){
   for(var k=0; k<ncomps; k++){
     phi[j+ncomps*k]=2*Math.PI*Math.random();
 	}
 }
-//phi=2*pi*rand(ncomps,ncomps); // random phases for the phonons
-
 // Plotting the potential
 var npV=xdim; // resolution of the potential picture
 var V = new Array(npV*npV);
@@ -197,7 +181,6 @@ for(var j=xmin; j<xmax; j+=(xmax-xmin)/(npV-1)){
    xg[k]=j;
 	 k++;
 }
-//xg=xmin:(xmax-xmin)/(npV-1):xmax;
 var ymin=-1e-6;
 var ymax=1e-6;
 var k=0;
@@ -247,8 +230,6 @@ function Vpot(xp,yp){
 	var comps1=kx.length;
 	var comps2=ky.length;
 	var tau = 0;
-	Vmax=0;
-	Vmin=0;
 	var Vout=0;
 	for(var i=0; i<comps1; i++){
 	    for(var j=0; j<comps2; j++){
@@ -269,8 +250,6 @@ function dxVpot(xp,yp){
 	var comps1=kx.length;
 	var comps2=ky.length;
 	var tau = 0;
-	Vmax=0;
-	Vmin=0;
 	var Vout=0;
 	for(var i=0; i<comps1; i++){
 	    for(var j=0; j<comps2; j++){
@@ -291,8 +270,6 @@ function dyVpot(xp,yp){
 	var comps1=kx.length;
 	var comps2=ky.length;
 	var tau = 0;
-	Vmax=0;
-	Vmin=0;
 	var Vout=0;
 	for(var i=0; i<comps1; i++){
 	    for(var j=0; j<comps2; j++){
@@ -307,15 +284,24 @@ function dyVpot(xp,yp){
 	return Vout;
 }
 
+function display_warning(){
+	context.font = "10px Arial";
+	context.fillText("Hello there, please wait a few seconds", 50, 300);
+	setTimeout(function(){
+   // do other things
+	}, 100);
 
+
+}
 function initGrid(){
+	//Vdefpot();
 	for (var y=0; y<ydim; y++) {
 		for (var x=0; x<xdim; x++) {
 			frame_buffer[x+y*xdim] = (V[x+y*xdim]-Vmin)/(Vmax-Vmin) ;
 		}
 	}
-	yy[0]=0.3; yy[1]=0.5;
 	init_traj();
+	paintCanvas();
 }
 
 // DEFINITIONS FOR INTEGRATION
@@ -347,6 +333,7 @@ var vx_n; var vy_n; var vx_n_1; var vy_n_1;
 var ax_n; var ay_n; var ax_n_1; var ay_n_1;
 var escape=0;
 var remaining=0;
+var first_run=1;
 
 function init_traj(){
 
@@ -379,10 +366,6 @@ function init_traj(){
 		remaining++;
 
 }
-
-// Compute potential once
-Vdefpot();
-initGrid();
 
 // Start of symplectic integration
 function integrate_trajectory(){
@@ -497,48 +480,16 @@ function integrate_trajectory(){
 		}
 	}
 
-	function odefunc(y) {
-		var x=y[0]; var v=y[1];
-			var k = 1; var m = 0.5; var g = 0;
-			return [v, (-k/m)*x + g];
-	}
-
-	// Collide particles within each cell (here's the physics!):
-	function integrate() {
-	 var h=0.001;
-	 var k0 = odefunc(yy);
-	 var k1 = odefunc([yy[0]+0.5*h*k0[0],yy[1]+0.5*h*k0[1]]);
-	 var k2 = odefunc([yy[0]+0.5*h*k1[0],yy[1]+0.5*h*k1[1]]);
-	 var k3 = odefunc([yy[0]+    h*k2[0],yy[1]+    h*k2[1]]);
-
-   yy[0] = yy[0]+h/6*(k0[0]+2*(k1[0]+k2[0])+k3[0]);
-   yy[1] = yy[1]+h/6*(k0[1]+2*(k1[1]+k2[1])+k3[1]);
-
-	}
-
 
 	// Paint the canvas:
 	function paintCanvas() {
 		var cIndex=0;
-		//var contrast = Math.pow(1.2,Number(contrastSlider.value));
-		//var plotType = plotSelect.selectedIndex;
-		//var pixelGraphics = pixelCheck.checked;
-
-		// Plot potential
-//		for (var y=0; y<ydim; y++) {
-//			for (var x=0; x<xdim; x++) {
-//				frame_buffer[x_pos+y_pos*xdim] = V[x_pos+y_pos*xdim];
-//			}
-//		}
-
-		//var x_pos = Math.floor(yy[0]*zoom+xdim/2);
-		//var y_pos = Math.floor(yy[1]*zoom+ydim/2);
 
 		//adjust pos relative to the canva
 		var x_pos = Math.floor((x_n-xmin)/(xmax-xmin)*xdim);
 		var y_pos = Math.floor((y_n-ymin)/(ymax-ymin)*ydim);
 
-if(x_pos>0 && x_pos<xdim && y_pos>0 && y_pos<xdim ){
+if(x_pos>=0 && x_pos<xdim && y_pos>=0 && y_pos<xdim ){
 
 		frame_buffer[x_pos+y_pos*xdim] = 0.99;
 		if(frame_buffer[x_pos+y_pos*xdim] > 1)
@@ -702,8 +653,16 @@ if(x_pos>0 && x_pos<xdim && y_pos>0 && y_pos<xdim ){
 
 	// Function to start or pause the simulation:
 	function startStop() {
+
 		running = !running;
 		if (running) {
+			if(first_run){
+				display_warning();
+				Vdefpot();
+				initGrid();
+				first_run=0;
+			}
+
 			startButton.value = "Pause";
 			resetTimer();
 			simulate();
