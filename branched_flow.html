@@ -122,7 +122,6 @@ on initial conditions.  Perhaps bounce-backs between adjacent barrier sites don'
 		var oldMouseX = -1, oldMouseY = -1;			// mouse coordinates from previous simulation frame
 		var collectingData = false;
 		var time = 0;								// time (in simulation step units) since data collection started
-		var zoom = 10
 		canvas.addEventListener('mousedown', mouseDown, false);
 		canvas.addEventListener('mousemove', mouseMove, false);
 		document.body.addEventListener('mouseup', mouseUp, false);	// button release could occur outside canvas
@@ -188,7 +187,22 @@ on initial conditions.  Perhaps bounce-backs between adjacent barrier sites don'
 			yg[k]=j;
 			k++;
 		}
-		//yg=ymin:(ymax-ymin)/(npV-1):ymax;
+		var cst_op = new Array(npV*npV)
+
+		// optimization: compute constant values for all loops:
+		function compute_common_values(){
+			var hbar = 1.0545718e-34;
+			var kB = 1.3806e-23;
+			var comps1=kx.length;
+			var comps2=ky.length;
+			for(var i=0; i<comps1; i++){
+				for(var j=0; j<comps2; j++){
+					k = Math.sqrt(kx[i]*kx[i] + ky[j]*ky[j]);
+					w = c_ph *k; // linear regime where the frequency is proportional to the modulus of vector k
+					cst_op[i+j*comps1] = Ed/c_ph*Math.sqrt(2*hbar*w) / Math.sqrt(Math.exp(hbar*w/ kB /T)-1);
+				}
+			}
+		}
 
 
 		function Vdefpot(){
@@ -197,7 +211,6 @@ on initial conditions.  Perhaps bounce-backs between adjacent barrier sites don'
 			var kB = 1.3806e-23;
 			var comps1=kx.length;
 			var comps2=ky.length;
-			var tau = 0;
 			Vmax=0;
 			Vmin=0;
 			for(var xi=0; xi<xg.length; xi++){
@@ -208,14 +221,9 @@ on initial conditions.  Perhaps bounce-backs between adjacent barrier sites don'
 			for(var i=0; i<comps1; i++){
 				for(var j=0; j<comps2; j++){
 
-					k = Math.sqrt(kx[i]*kx[i] + ky[j]*ky[j]);
-					w = c_ph *k; // linear regime where the frequency is proportional to the modulus of vector k
-
-					var cst_op = Ed/c_ph*Math.sqrt(2*hbar*w) / Math.sqrt(Math.exp(hbar*w/ kB /T)-1);
-
 					for(var xi=0; xi<xg.length; xi++){
 						for(var yi=0; yi<yg.length; yi++){
-							Vnew = cst_op*Math.cos(kx[i]*xg[xi] + ky[j]*yg[yi] + phi[i+j*comps2]);
+							Vnew = cst_op[i+j*comps1]*Math.cos(kx[i]*xg[xi] + ky[j]*yg[yi] + phi[i+j*comps2]);
 							if (isNaN(Vnew))
 								Vnew = 0; // to avoid dividing 0 by 0
 							V[xi+yi*xg.length] = V[xi+yi*xg.length] + Vnew;
@@ -232,13 +240,10 @@ on initial conditions.  Perhaps bounce-backs between adjacent barrier sites don'
 			var kB = 1.3806e-23;
 			var comps1=kx.length;
 			var comps2=ky.length;
-			var tau = 0;
 			var Vout=0;
 			for(var i=0; i<comps1; i++){
 				for(var j=0; j<comps2; j++){
-					k = Math.sqrt(kx[i]*kx[i] + ky[j]*ky[j]);
-					w = c_ph *k; // linear regime where the frequency is proportional to the modulus of vector k
-					Vnew = Ed/c_ph*Math.sqrt(2*hbar*w) / Math.sqrt(Math.exp(hbar*w/ kB /T)-1)*Math.cos(kx[i]*xp + ky[j]*yp - w*tau + phi[i+j*comps2]);
+					Vnew = cst_op[i+j*comps1]*Math.cos(kx[i]*xp + ky[j]*yp + phi[i+j*comps2]);
 					if (isNaN(Vnew))
 					Vnew = 0; // to avoid dividing 0 by 0
 					Vout = Vout + Vnew;
@@ -252,13 +257,10 @@ on initial conditions.  Perhaps bounce-backs between adjacent barrier sites don'
 			var kB = 1.3806e-23;
 			var comps1=kx.length;
 			var comps2=ky.length;
-			var tau = 0;
 			var Vout=0;
 			for(var i=0; i<comps1; i++){
 				for(var j=0; j<comps2; j++){
-					var kk = Math.sqrt(kx[i]*kx[i] + ky[j]*ky[j]);
-					var w = c_ph *kk; // linear regime where the frequency is proportional to the modulus of vector k
-					Vnew = -kx[i]*Ed/c_ph*Math.sqrt(2*hbar*w) / Math.sqrt(Math.exp(hbar*w/ kB /T)-1) * Math.sin(kx[i]*xp + ky[j]*yp - w*tau + phi[i+comps1*j]);
+					Vnew = -kx[i]*cst_op[i+j*comps1]*Math.sin(kx[i]*xp + ky[j]*yp + phi[i+comps1*j]);
 					if (isNaN(Vnew))
 					Vnew = 0; // to avoid dividing 0 by 0
 					Vout = Vout + Vnew;
@@ -272,13 +274,10 @@ on initial conditions.  Perhaps bounce-backs between adjacent barrier sites don'
 			var kB = 1.3806e-23;
 			var comps1=kx.length;
 			var comps2=ky.length;
-			var tau = 0;
 			var Vout=0;
 			for(var i=0; i<comps1; i++){
 				for(var j=0; j<comps2; j++){
-					k = Math.sqrt(kx[i]*kx[i] + ky[j]*ky[j]);
-					w = c_ph *k; // linear regime where the frequency is proportional to the modulus of vector k
-					Vnew = -ky[j]*Ed/c_ph*Math.sqrt(2*hbar*w) / Math.sqrt(Math.exp(hbar*w/ kB /T)-1)*Math.sin(kx[i]*xp + ky[j]*yp - w*tau + phi[i+comps1*j]);
+					Vnew = -ky[j]*cst_op[i+j*comps1]*Math.sin(kx[i]*xp + ky[j]*yp + phi[i+comps1*j]);
 					if (isNaN(Vnew))
 					Vnew = 0; // to avoid dividing 0 by 0
 					Vout = Vout + Vnew;
@@ -294,6 +293,7 @@ on initial conditions.  Perhaps bounce-backs between adjacent barrier sites don'
 		}
 
 		function initGrid(){
+
 			for (var y=0; y<ydim; y++) {
 				for (var x=0; x<xdim; x++) {
 					frame_buffer[x+y*xdim] = (V[x+y*xdim]-Vmin)/(Vmax-Vmin) ;
@@ -341,6 +341,9 @@ on initial conditions.  Perhaps bounce-backs between adjacent barrier sites don'
 				startStop();
 				remaining=0;
 			}
+		//	var V0 = Vpot(x_n, y_n);
+		//	var E0 = V0 + 0.5*me*v0*v0;
+		//	v0=Math.sqrt(2/me*(E0-V0)-vy_n*vy_n);
 
 			if(beam==1){
 				x_n=x0;
@@ -355,9 +358,6 @@ on initial conditions.  Perhaps bounce-backs between adjacent barrier sites don'
 				vy_n=v0*Math.sin(angle[remaining]*2*Math.PI/360);
 			}
 
-			var V0 = Vpot(x_n, y_n);
-			var E0 = V0 + 0.5*me*v0*v0;
-			v0=Math.sqrt(2/me*(E0-V0)-vy_n*vy_n);
 			escape=0;
 
 			ax_n=0;
@@ -455,8 +455,18 @@ on initial conditions.  Perhaps bounce-backs between adjacent barrier sites don'
 			// Execute a bunch of time steps:
 			for (var step=0; step<stepsPerFrame; step++) {
 				integrate_trajectory();
+				var x_pos = Math.floor((x_n-xmin)/(xmax-xmin)*xdim);
+				var y_pos = Math.floor((y_n-ymin)/(ymax-ymin)*ydim);
+
+				if(x_pos>=0 && x_pos<xdim && y_pos>=0 && y_pos<xdim ){
+
+					frame_buffer[x_pos+y_pos*xdim] = 0.99;
+					if(frame_buffer[x_pos+y_pos*xdim] > 1)
+					frame_buffer[x_pos+y_pos*xdim] = 0.99
+				}
 				time++;
 			}
+			//paint_point_Canvas();
 			paintCanvas();
 
 			if (running) {
@@ -464,13 +474,8 @@ on initial conditions.  Perhaps bounce-backs between adjacent barrier sites don'
 				var elapsedTime = ((new Date()).getTime() - startTime) / 1000;	// time in seconds
 				speedReadout.innerHTML = Number(stepCount/elapsedTime).toFixed(0);
 			}
-			var stable = true;
 
-			if (!stable) {
-				window.alert("The simulation has become unstable due to excessive fluid speeds.");
-				startStop();
-			}
-			if (running) {
+		if (running) {
 				if (rafCheck.checked) {
 					requestAnimFrame(function() { simulate(); });	// let browser schedule next frame
 				} else {
@@ -522,6 +527,26 @@ on initial conditions.  Perhaps bounce-backs between adjacent barrier sites don'
 			context.putImageData(image, 0, 0);		// blast image to the screen
 
 		}
+
+		// Paint the canvas:
+		function paint_point_Canvas() {
+			var cIndex=0;
+
+			//adjust pos relative to the canva
+			var x_pos = Math.floor((x_n-xmin)/(xmax-xmin)*xdim);
+			var y_pos = Math.floor((y_n-ymin)/(ymax-ymin)*ydim);
+
+			if(x_pos>=0 && x_pos<xdim && y_pos>=0 && y_pos<xdim ){
+						cIndex = Math.round(nColors * 0.99);
+						if (cIndex < 0) cIndex = 0;
+						if (cIndex > nColors) cIndex = nColors;
+						colorSquare(x_pos, y_pos, redList[cIndex], greenList[cIndex], blueList[cIndex]);
+			}
+			context.putImageData(image, 0, 0);		// blast image to the screen
+
+		}
+
+
 
 		// Color a grid square in the image data array, one pixel at a time (rgb each in range 0 to 255):
 		function colorSquare(x, y, r, g, b) {
@@ -657,6 +682,7 @@ function startStop() {
 	if (running) {
 		if(first_run){
 			display_warning();
+			compute_common_values();
 			Vdefpot();
 			initGrid();
 			first_run=0;
